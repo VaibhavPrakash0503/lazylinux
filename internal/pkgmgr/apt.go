@@ -37,3 +37,22 @@ func (a *APT) Remove(packages ...string) error {
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
+
+func (a *APT) Update() error {
+	// APT update needs two commands: update repo lists, then upgrade packages
+
+	// First: sudo apt update
+	updateCmd := exec.Command("sudo", "apt", "update")
+	updateCmd.Stdout = os.Stdout
+	updateCmd.Stderr = os.Stderr
+	err := updateCmd.Run()
+	if err != nil {
+		return err
+	}
+
+	// Second: sudo apt upgrade -y
+	upgradeCmd := exec.Command("sudo", "apt", "upgrade", "-y")
+	upgradeCmd.Stdout = os.Stdout
+	upgradeCmd.Stderr = os.Stderr
+	return upgradeCmd.Run()
+}

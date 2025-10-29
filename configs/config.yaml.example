@@ -1,0 +1,10 @@
+# LazyLinux Configuration
+# Location: ~/.config/lazylinux/config.yaml
+# 
+# This file is automatically created by running:
+#   lazylinux init
+
+# Package Manager (auto-detected)
+# Supported: dnf, apt, pacman
+package_manager: dnf
+

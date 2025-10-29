@@ -33,3 +33,11 @@ func (d *DNF) Remove(packages ...string) error {
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
+
+func (d *DNF) Update() error {
+	// DNF command: sudo dnf update -y
+	cmd := exec.Command("sudo", "dnf", "update", "-y")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}

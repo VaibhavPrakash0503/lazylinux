@@ -37,3 +37,12 @@ func (p *Pacman) Remove(packages ...string) error {
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
+
+func (p *Pacman) Update() error {
+	// Pacman command: sudo pacman -Syu --noconfirm
+	// -S = sync, -y = refresh repos, -u = upgrade
+	cmd := exec.Command("sudo", "pacman", "-Syu", "--noconfirm")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
