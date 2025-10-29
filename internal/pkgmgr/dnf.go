@@ -1,0 +1,35 @@
+package pkgmgr
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+)
+
+type DNF struct{}
+
+func NewDNF() *DNF {
+	return &DNF{}
+}
+
+func (d *DNF) Install(packages ...string) error {
+	if len(packages) == 0 {
+		return fmt.Errorf("no packages specified")
+	}
+	args := append([]string{"install", "-y"}, packages...)
+	cmd := exec.Command("sudo", append([]string{"dnf"}, args...)...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+func (d *DNF) Remove(packages ...string) error {
+	if len(packages) == 0 {
+		return fmt.Errorf("no packages specified")
+	}
+	args := append([]string{"remove", "-y"}, packages...)
+	cmd := exec.Command("sudo", append([]string{"dnf"}, args...)...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
