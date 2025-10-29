@@ -46,3 +46,32 @@ func (p *Pacman) Update() error {
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
+
+func (p *Pacman) Clean() error {
+	// Clean package cache (keep only current versions)
+	fmt.Println("🧹 Cleaning package cache...")
+	cleanCmd := exec.Command("sudo", "pacman", "-Sc", "--noconfirm")
+	cleanCmd.Stdout = os.Stdout
+	cleanCmd.Stderr = os.Stderr
+	err := cleanCmd.Run()
+	if err != nil {
+		return err
+	}
+
+	// Remove orphaned packages
+	fmt.Println("🗑️  Removing orphaned packages...")
+
+	// First check if there are orphaned packages
+	checkCmd := exec.Command("pacman", "-Qtdq")
+	output, err := checkCmd.Output()
+	if err != nil || len(output) == 0 {
+		fmt.Println("✨ No orphaned packages found")
+		return nil
+	}
+
+	// Remove orphaned packages
+	removeCmd := exec.Command("sudo", "pacman", "-Rns", "--noconfirm", string(output))
+	removeCmd.Stdout = os.Stdout
+	removeCmd.Stderr = os.Stderr
+	return removeCmd.Run()
+}

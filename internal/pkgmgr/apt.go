@@ -56,3 +56,22 @@ func (a *APT) Update() error {
 	upgradeCmd.Stderr = os.Stderr
 	return upgradeCmd.Run()
 }
+
+func (a *APT) Clean() error {
+	// Clean package cache
+	fmt.Println("🧹 Cleaning package cache...")
+	cleanCmd := exec.Command("sudo", "apt", "clean")
+	cleanCmd.Stdout = os.Stdout
+	cleanCmd.Stderr = os.Stderr
+	err := cleanCmd.Run()
+	if err != nil {
+		return err
+	}
+
+	// Remove orphaned packages
+	fmt.Println("🗑️  Removing orphaned packages...")
+	autoremoveCmd := exec.Command("sudo", "apt", "autoremove", "-y")
+	autoremoveCmd.Stdout = os.Stdout
+	autoremoveCmd.Stderr = os.Stderr
+	return autoremoveCmd.Run()
+}

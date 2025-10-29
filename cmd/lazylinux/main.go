@@ -107,6 +107,30 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println("✅ Update complete!")
+
+	case "clean":
+		// Check if initialized
+		if !config.ConfigExists() {
+			fmt.Println("❌ LazyLinux not initialized!")
+			fmt.Println("Run: lazylinux init")
+			os.Exit(1)
+		}
+
+		// Load package manager
+		pm, err := loadPackageManager()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("🧼 Cleaning system...")
+		err = pm.Clean()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Clean failed: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("✅ System cleaned!")
+
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		showHelp()
@@ -140,5 +164,6 @@ func showHelp() {
 	fmt.Println("  init                   - Initialize LazyLinux (run this first)")
 	fmt.Println("  install <package>...   - Install packages")
 	fmt.Println("  remove <package>...    - Remove packages")
-	fmt.Println("  update                 - Update all packages") // ← Add this
+	fmt.Println("  update                 - Update all packages")
+	fmt.Println("  clean                  - Clean cache and remove orphaned packages")
 }

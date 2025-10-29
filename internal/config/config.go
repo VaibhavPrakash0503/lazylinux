@@ -1,3 +1,6 @@
+// Package config provides configuration management for LazyLinux.
+// It handles loading, saving, and validating configuration settings stored
+// in YAML format at ~/.config/lazylinux/config.yaml.
 package config
 
 import (
