@@ -24,3 +24,9 @@ func DetectPackageManager() (PackageManager, error) {
 
 	return nil, fmt.Errorf("no supported package manager found (dnf, apt, pacman)")
 }
+
+// DetectFlatpak checks if Flatpak is available
+func DetectFlatpak() bool {
+	_, err := exec.LookPath("flatpak")
+	return err == nil
+}

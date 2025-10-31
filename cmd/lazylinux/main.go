@@ -10,11 +10,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage lazylinux <command> [option]")
-		fmt.Println("Commands")
-		fmt.Println("install <package>... -Install a package")
-		fmt.Println("remove <package>...  - Remove packages")
-		fmt.Println("update - Updates system")
+		showHelp()
 		os.Exit(1)
 	}
 
@@ -38,7 +34,14 @@ func main() {
 		}
 
 		if len(os.Args) < 3 {
-			fmt.Println("No package sepecified")
+			fmt.Println("No package specified")
+			os.Exit(1)
+		}
+
+		// Load config
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Error loading config: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -49,13 +52,39 @@ func main() {
 		}
 
 		packages := os.Args[2:]
-		fmt.Printf("Installing packages: %v\n", packages)
-		err = pm.Install(packages...)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Install failed: %v\n", err)
-			os.Exit(1)
+
+		// Install each package with smart resolution
+		for _, pkg := range packages {
+			fmt.Printf("\n🔍 Looking for '%s'...\n", pkg)
+
+			// Resolve package across all sources
+			sources := pkgmgr.ResolvePackage(pkg, pm, cfg.FlatpakEnabled)
+
+			// Let user choose or auto-select
+			chosen := pkgmgr.PromptUserChoice(sources, pkg)
+
+			if chosen == nil {
+				fmt.Printf("❌ Package '%s' not found in any source\n", pkg)
+				continue
+			}
+
+			// Install from chosen source
+			fmt.Printf("\n📦 Installing '%s' from %s...\n", pkg, chosen.Manager)
+
+			var installErr error
+			if chosen.Manager == "flatpak" {
+				flatpakPM := pkgmgr.NewFlatpak()
+				installErr = flatpakPM.Install(chosen.PackageName)
+			} else {
+				installErr = pm.Install(pkg)
+			}
+
+			if installErr != nil {
+				fmt.Fprintf(os.Stderr, "❌ Failed to install '%s': %v\n", pkg, installErr)
+			} else {
+				fmt.Printf("✅ Successfully installed '%s'\n", pkg)
+			}
 		}
-		fmt.Println("✅ Installation complete!")
 
 	case "remove":
 		// Check if initialized
@@ -66,7 +95,15 @@ func main() {
 		}
 
 		if len(os.Args) < 3 {
-			fmt.Println("No package sepecified")
+			fmt.Println("Error: No package specified")
+			fmt.Println("Usage: lazylinux remove <package>...")
+			os.Exit(1)
+		}
+
+		// Load config
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Error loading config: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -77,13 +114,39 @@ func main() {
 		}
 
 		packages := os.Args[2:]
-		fmt.Printf("Removing packages: %v\n", packages)
-		err = pm.Remove(packages...)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Remove failed: %v\n", err)
-			os.Exit(1)
+
+		// Remove each package with smart resolution
+		for _, pkg := range packages {
+			fmt.Printf("\n🔍 Looking for '%s' to remove...\n", pkg)
+
+			// Resolve package across all sources
+			sources := pkgmgr.ResolvePackage(pkg, pm, cfg.FlatpakEnabled)
+
+			// Let user choose or auto-select
+			chosen := pkgmgr.PromptUserChoice(sources, pkg)
+
+			if chosen == nil {
+				fmt.Printf("❌ Package '%s' not found in any source\n", pkg)
+				continue
+			}
+
+			// Remove from chosen source
+			fmt.Printf("\n📦 Removing '%s' from %s...\n", pkg, chosen.Manager)
+
+			var removeErr error
+			if chosen.Manager == "flatpak" {
+				flatpakPM := pkgmgr.NewFlatpak()
+				removeErr = flatpakPM.Remove(chosen.PackageName)
+			} else {
+				removeErr = pm.Remove(pkg)
+			}
+
+			if removeErr != nil {
+				fmt.Fprintf(os.Stderr, "❌ Failed to remove '%s': %v\n", pkg, removeErr)
+			} else {
+				fmt.Printf("✅ Successfully removed '%s'\n", pkg)
+			}
 		}
-		fmt.Println("✅ Remove complete!")
 
 	case "update":
 		// Check if initialized
@@ -93,20 +156,46 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Load package manager
+		// Load config
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+
 		pm, err := loadPackageManager()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "❌ Error: %v\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Println("🔄 Updating all packages...")
+		fmt.Println("🔄 Updating packages...")
+		fmt.Println()
+
+		// Update native package manager
+		fmt.Printf("🔄 Updating %s packages...\n", getPackageManagerName(pm))
 		err = pm.Update()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Update failed: %v\n", err)
-			os.Exit(1)
+			fmt.Fprintf(os.Stderr, "❌ Failed to update native packages: %v\n", err)
+		} else {
+			fmt.Println("✅ Native packages updated")
 		}
-		fmt.Println("✅ Update complete!")
+
+		// Update Flatpak if available
+		if cfg.FlatpakEnabled {
+			fmt.Println()
+			fmt.Println("🔄 Updating Flatpak packages...")
+			flatpakPM := pkgmgr.NewFlatpak()
+			err = flatpakPM.Update()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "❌ Failed to update Flatpak packages: %v\n", err)
+			} else {
+				fmt.Println("✅ Flatpak packages updated")
+			}
+		}
+
+		fmt.Println()
+		fmt.Println("✅ All updates complete!")
 
 	case "clean":
 		// Check if initialized
@@ -116,7 +205,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Load package manager
+		// Load config
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+
 		pm, err := loadPackageManager()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "❌ Error: %v\n", err)
@@ -124,11 +219,31 @@ func main() {
 		}
 
 		fmt.Println("🧼 Cleaning system...")
+		fmt.Println()
+
+		// Clean native package manager
+		fmt.Printf("🧹 Cleaning %s...\n", getPackageManagerName(pm))
 		err = pm.Clean()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Clean failed: %v\n", err)
-			os.Exit(1)
+			fmt.Fprintf(os.Stderr, "❌ Failed to clean native packages: %v\n", err)
+		} else {
+			fmt.Println("✅ Native packages cleaned")
 		}
+
+		// Clean Flatpak if available
+		if cfg.FlatpakEnabled {
+			fmt.Println()
+			fmt.Println("🧹 Cleaning Flatpak...")
+			flatpakPM := pkgmgr.NewFlatpak()
+			err = flatpakPM.Clean()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "❌ Failed to clean Flatpak: %v\n", err)
+			} else {
+				fmt.Println("✅ Flatpak cleaned")
+			}
+		}
+
+		fmt.Println()
 		fmt.Println("✅ System cleaned!")
 
 	default:
@@ -166,4 +281,17 @@ func showHelp() {
 	fmt.Println("  remove <package>...    - Remove packages")
 	fmt.Println("  update                 - Update all packages")
 	fmt.Println("  clean                  - Clean cache and remove orphaned packages")
+}
+
+func getPackageManagerName(pm pkgmgr.PackageManager) string {
+	switch pm.(type) {
+	case *pkgmgr.DNF:
+		return "DNF"
+	case *pkgmgr.APT:
+		return "APT"
+	case *pkgmgr.Pacman:
+		return "Pacman"
+	default:
+		return "unknown"
+	}
 }

@@ -23,10 +23,20 @@ func RunInit() error {
 	fmt.Printf("✅ Detected: %s\n", pmName)
 	fmt.Println()
 
+	// Detect Flatpak
+	flatpakAvailable := DetectFlatpak()
+	if flatpakAvailable {
+		fmt.Println("  ✅ Flatpak: available")
+	} else {
+		fmt.Println("  ℹ️  Flatpak: not installed (optional)")
+	}
+	fmt.Println()
+
 	// Save to config
 	fmt.Println("💾 Saving configuration...")
 	cfg := &config.Config{
 		PackageManager: pmName,
+		FlatpakEnabled: flatpakAvailable,
 	}
 
 	err = config.SaveConfig(cfg)

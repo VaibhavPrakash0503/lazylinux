@@ -14,6 +14,7 @@ import (
 // Config represents the LazyLinux configuration
 type Config struct {
 	PackageManager string `yaml:"package_manager"` // "dnf", "apt", or "pacman"
+	FlatpakEnabled bool   `yaml:"flatpak_enabled"` // FlatpakEnabled indicates if Flatpak support is available
 }
 
 // GetConfigPath returns the path to the config file
