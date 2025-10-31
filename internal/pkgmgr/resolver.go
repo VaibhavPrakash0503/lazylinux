@@ -73,10 +73,6 @@ func checkNativePackage(packageName string, pm PackageManager) bool {
 	default:
 		return false
 	}
-
-	// Suppress output
-	// cmd.Stdout = nil
-	// cmd.Stderr = nil
 }
 
 // searchFlatpakPackages searches Flatpak and returns all matching packages with confidence scores
@@ -194,9 +190,7 @@ func fuzzyMatchAppID(searchTerm, appID string) int {
 		return r == '.' || r == '_' || r == '-'
 	})
 
-	searchParts := strings.Split(searchTerm, " ")
-
-	for _, searchPart := range searchParts {
+	for searchPart := range strings.SplitSeq(searchTerm, " ") {
 		for _, part := range parts {
 			partLower := strings.ToLower(part)
 
@@ -250,10 +244,6 @@ func PromptUserChoice(sources []PackageSource, packageName string) *PackageSourc
 	fmt.Printf("\n📦 Found '%s' in multiple sources:\n", packageName)
 
 	for i, src := range available {
-		recommended := ""
-		if src.Manager != "flatpak" {
-			recommended = " (recommended)"
-		}
 
 		displayName := src.PackageName
 		if src.Manager == "flatpak" {
@@ -261,11 +251,11 @@ func PromptUserChoice(sources []PackageSource, packageName string) *PackageSourc
 			displayName = fmt.Sprintf("%s [%s]", src.PackageName, getConfidenceLabel(src.Confidence))
 		}
 
-		fmt.Printf("  [%d] %-10s - %s%s\n", i+1, src.Manager, displayName, recommended)
+		fmt.Printf("  [%d] %-10s - %s\n", i+1, src.Manager, displayName)
 	}
 
 	// Get user input
-	fmt.Print("\nChoose source [1]: ")
+	fmt.Print("\nChoose source only one: ")
 	reader := bufio.NewReader(os.Stdin)
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
