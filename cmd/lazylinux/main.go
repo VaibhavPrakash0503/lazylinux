@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"lazylinux/internal/config"
 	"lazylinux/internal/pkgmgr"
@@ -172,30 +173,68 @@ func main() {
 		fmt.Println("🔄 Updating packages...")
 		fmt.Println()
 
-		// Update native package manager
-		fmt.Printf("🔄 Updating %s packages...\n", getPackageManagerName(pm))
-		err = pm.Update()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Failed to update native packages: %v\n", err)
-		} else {
-			fmt.Println("✅ Native packages updated")
+		var wg sync.WaitGroup
+		errChan := make(chan struct {
+			manager string
+			err     error
+		}, 2) // Buffer for max 2 sources
+
+		numUpdates := 1
+		if cfg.FlatpakEnabled {
+			numUpdates = 2
+		}
+		wg.Add(numUpdates)
+
+		// Update native package manager (goroutine)
+		go func() {
+			defer wg.Done()
+			fmt.Printf("🔄 Updating %s packages...\n", getPackageManagerName(pm))
+			err := pm.Update()
+			if err != nil {
+				errChan <- struct {
+					manager string
+					err     error
+				}{getPackageManagerName(pm), err}
+				return
+			}
+			fmt.Printf("✅ %s packages updated\n", getPackageManagerName(pm))
+		}()
+
+		// Update Flatpak (goroutine)
+		if cfg.FlatpakEnabled {
+			go func() {
+				defer wg.Done()
+				fmt.Println("🔄 Updating Flatpak packages...")
+				flatpakPM := pkgmgr.NewFlatpak()
+				err := flatpakPM.Update()
+				if err != nil {
+					errChan <- struct {
+						manager string
+						err     error
+					}{"Flatpak", err}
+					return
+				}
+				fmt.Println("✅ Flatpak packages updated")
+			}()
 		}
 
-		// Update Flatpak if available
-		if cfg.FlatpakEnabled {
-			fmt.Println()
-			fmt.Println("🔄 Updating Flatpak packages...")
-			flatpakPM := pkgmgr.NewFlatpak()
-			err = flatpakPM.Update()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "❌ Failed to update Flatpak packages: %v\n", err)
-			} else {
-				fmt.Println("✅ Flatpak packages updated")
-			}
+		// Wait for all updates to complete
+		wg.Wait()
+		close(errChan)
+
+		// Handle any errors that occurred
+		hasErrors := false
+		for errResult := range errChan {
+			hasErrors = true
+			fmt.Fprintf(os.Stderr, "❌ Failed to update %s packages: %v\n", errResult.manager, errResult.err)
 		}
 
 		fmt.Println()
-		fmt.Println("✅ All updates complete!")
+		if !hasErrors {
+			fmt.Println("✅ All updates complete!")
+		} else {
+			fmt.Println("⚠️  Some updates failed. Check errors above.")
+		}
 
 	case "clean":
 		// Check if initialized

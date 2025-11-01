@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // PackageSource represents where a package was found
@@ -21,22 +22,43 @@ type PackageSource struct {
 func ResolvePackage(packageName string, nativePM PackageManager, hasFlatpak bool) []PackageSource {
 	sources := []PackageSource{}
 
-	// Check native package manager
-	fmt.Printf("  🔍 Searching in %s...\n", getPackageManagerName(nativePM))
-	nativeAvailable := checkNativePackage(packageName, nativePM)
-	sources = append(sources, PackageSource{
-		Manager:     getPackageManagerName(nativePM),
-		PackageName: packageName,
-		Available:   nativeAvailable,
-		Confidence:  100, // Exact match in native
-	})
+	var wg sync.WaitGroup
 
-	// Check Flatpak if available
-	if hasFlatpak {
+	nativeChan := make(chan PackageSource, 1)
+	flatpakChan := make(chan []PackageSource, 1)
+
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+
+		fmt.Printf("  🔍 Searching in %s...\n", getPackageManagerName(nativePM))
+		available := checkNativePackage(packageName, nativePM)
+		nativeChan <- PackageSource{
+			Manager:     getPackageManagerName(nativePM),
+			PackageName: packageName,
+			Available:   available,
+			Confidence:  100, // Exact match in native
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		if !hasFlatpak {
+			flatpakChan <- []PackageSource{} // Send empty result
+			return
+		}
 		fmt.Println("  🔍 Searching in Flatpak...")
 		flatpakMatches := searchFlatpakPackages(packageName)
-		sources = append(sources, flatpakMatches...)
-	}
+		flatpakChan <- flatpakMatches
+	}()
+
+	wg.Wait()
+
+	sources = append(sources, <-nativeChan)
+	sources = append(sources, <-flatpakChan...)
+
+	close(nativeChan)
+	close(flatpakChan)
 
 	return sources
 }
@@ -79,22 +101,44 @@ func checkNativePackage(packageName string, pm PackageManager) bool {
 func ResolvePackageForRemove(packageName string, nativePM PackageManager, hasFlatpak bool) []PackageSource {
 	sources := []PackageSource{}
 
-	// Check native - INSTALLED packages only
-	fmt.Printf("  🔍 Searching in %s...\n", getPackageManagerName(nativePM))
-	nativeInstalled := checkInstalledPackages(packageName, nativePM)
-	sources = append(sources, PackageSource{
-		Manager:     getPackageManagerName(nativePM),
-		PackageName: packageName,
-		Available:   nativeInstalled,
-		Confidence:  100,
-	})
+	var wg sync.WaitGroup
 
-	// Check Flatpak if available
-	if hasFlatpak {
+	nativeChan := make(chan PackageSource, 1)
+	flatpakChan := make(chan []PackageSource, 1)
+
+	wg.Add(2)
+
+	// Check native - INSTALLED packages only
+	go func() {
+		defer wg.Done()
+		fmt.Printf("  🔍 Searching in %s...\n", getPackageManagerName(nativePM))
+		nativeInstalled := checkInstalledPackages(packageName, nativePM)
+		nativeChan <- PackageSource{
+			Manager:     getPackageManagerName(nativePM),
+			PackageName: packageName,
+			Available:   nativeInstalled,
+			Confidence:  100,
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		if !hasFlatpak {
+			flatpakChan <- []PackageSource{} // Send empty result
+			return
+		}
 		fmt.Println("  🔍 Searching in Flatpak...")
 		flatpakMatches := searchFlatpakInstalledPackages(packageName)
-		sources = append(sources, flatpakMatches...)
-	}
+		flatpakChan <- flatpakMatches
+	}()
+
+	wg.Wait()
+
+	sources = append(sources, <-nativeChan)
+	sources = append(sources, <-flatpakChan...)
+
+	close(nativeChan)
+	close(flatpakChan)
 
 	return sources
 }
