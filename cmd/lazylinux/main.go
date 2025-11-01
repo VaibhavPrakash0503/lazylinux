@@ -120,7 +120,7 @@ func main() {
 			fmt.Printf("\n🔍 Looking for '%s' to remove...\n", pkg)
 
 			// Resolve package across all sources
-			sources := pkgmgr.ResolvePackage(pkg, pm, cfg.FlatpakEnabled)
+			sources := pkgmgr.ResolvePackageForRemove(pkg, pm, cfg.FlatpakEnabled)
 
 			// Let user choose or auto-select
 			chosen := pkgmgr.PromptUserChoice(sources, pkg)

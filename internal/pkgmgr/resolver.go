@@ -75,6 +75,132 @@ func checkNativePackage(packageName string, pm PackageManager) bool {
 	}
 }
 
+// ResolvePackageForRemove finds INSTALLED packages to remove
+func ResolvePackageForRemove(packageName string, nativePM PackageManager, hasFlatpak bool) []PackageSource {
+	sources := []PackageSource{}
+
+	// Check native - INSTALLED packages only
+	fmt.Printf("  🔍 Searching in %s...\n", getPackageManagerName(nativePM))
+	nativeInstalled := checkInstalledPackages(packageName, nativePM)
+	sources = append(sources, PackageSource{
+		Manager:     getPackageManagerName(nativePM),
+		PackageName: packageName,
+		Available:   nativeInstalled,
+		Confidence:  100,
+	})
+
+	// Check Flatpak if available
+	if hasFlatpak {
+		fmt.Println("  🔍 Searching in Flatpak...")
+		flatpakMatches := searchFlatpakInstalledPackages(packageName)
+		sources = append(sources, flatpakMatches...)
+	}
+
+	return sources
+}
+
+// searchFlatpakInstalledPackages searches only INSTALLED flatpak apps
+func searchFlatpakInstalledPackages(packageName string) []PackageSource {
+	matches := []PackageSource{}
+
+	// List only installed apps
+	cmd := exec.Command("flatpak", "list", "--app", "--columns=application,name")
+	output, err := cmd.Output()
+
+	if err != nil || len(output) == 0 {
+		return matches
+	}
+
+	// Parse output
+	lines := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
+
+	for line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		parts := strings.Split(line, "\t")
+		if len(parts) < 2 {
+			continue
+		}
+
+		appID := strings.TrimSpace(parts[0])
+		appName := strings.TrimSpace(parts[1])
+
+		if appID == "" {
+			continue
+		}
+
+		// Calculate match confidence
+		confidence := calculateMatchConfidence(packageName, appName, appID)
+
+		if confidence < 75 {
+			continue
+		}
+
+		matches = append(matches, PackageSource{
+			Manager:     "flatpak",
+			PackageName: appID,
+			Available:   true,
+			Confidence:  confidence,
+		})
+	}
+
+	// Sort by confidence
+	for i := 0; i < len(matches); i++ {
+		for j := i + 1; j < len(matches); j++ {
+			if matches[j].Confidence > matches[i].Confidence {
+				matches[i], matches[j] = matches[j], matches[i]
+			}
+		}
+	}
+
+	if len(matches) > 5 {
+		return matches[:5]
+	}
+
+	return matches
+}
+
+func checkInstalledPackages(packageName string, pm PackageManager) bool {
+	var cmd *exec.Cmd
+	var output []byte
+	var err error
+
+	switch pm.(type) {
+	case *DNF:
+		cmd = exec.Command("rpm", "-q", packageName)
+		output, err = cmd.Output()
+		if err != nil || len(output) == 0 {
+			return false
+		}
+		return true
+
+	case *APT:
+		// dpkg-query -W -f='${Status}' <package> (check installed)
+		cmd = exec.Command("dpkg-query", "-W", "-f=${Status}", packageName)
+		output, err = cmd.Output()
+		if err != nil || len(output) == 0 {
+			return false
+		}
+		// Check if status contains "installed"
+		return strings.Contains(string(output), "installed")
+
+	case *Pacman:
+		// pacman -Q <package> (check installed)
+		cmd = exec.Command("pacman", "-Q", packageName)
+		output, err = cmd.Output()
+		if err != nil || len(output) == 0 {
+			return false
+		}
+		return true
+
+	default:
+		return false
+
+	}
+}
+
 // searchFlatpakPackages searches Flatpak and returns all matching packages with confidence scores
 func searchFlatpakPackages(packageName string) []PackageSource {
 	matches := []PackageSource{}
@@ -113,6 +239,10 @@ func searchFlatpakPackages(packageName string) []PackageSource {
 
 		// Calculate match confidence
 		confidence := calculateMatchConfidence(packageName, appName, appID)
+
+		if confidence < 75 {
+			continue
+		}
 
 		matches = append(matches, PackageSource{
 			Manager:     "flatpak",
@@ -159,7 +289,7 @@ func calculateMatchConfidence(searchTerm, appName, appID string) int {
 		if strings.HasPrefix(appNameLower, searchLower) {
 			return 90
 		}
-		return 80
+		return 85
 	}
 
 	// Check if search term appears in app ID (fuzzy matching with regex)
@@ -168,13 +298,8 @@ func calculateMatchConfidence(searchTerm, appName, appID string) int {
 		return confidence
 	}
 
-	// Partial match in app name
-	if strings.Contains(appNameLower, strings.Split(searchLower, " ")[0]) {
-		return 50
-	}
-
-	// Very weak match
-	return 10
+	// No meaningful match
+	return 0
 }
 
 // fuzzyMatchAppID checks how well search term matches Flatpak app ID
@@ -201,12 +326,7 @@ func fuzzyMatchAppID(searchTerm, appID string) int {
 
 			// Prefix match of a part
 			if strings.HasPrefix(partLower, searchPart) {
-				return 75
-			}
-
-			// Contains match (weaker)
-			if strings.Contains(partLower, searchPart) {
-				return 60
+				return 78
 			}
 		}
 	}
@@ -283,8 +403,6 @@ func getConfidenceLabel(confidence int) string {
 		return "strong"
 	} else if confidence >= 70 {
 		return "good"
-	} else if confidence >= 60 {
-		return "fair"
 	}
 	return "weak"
 }

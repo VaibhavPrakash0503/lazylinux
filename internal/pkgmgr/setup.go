@@ -51,6 +51,9 @@ func RunInit() error {
 	fmt.Println("Try these commands:")
 	fmt.Println("  lazylinux install <package>")
 	fmt.Println("  lazylinux remove <package>")
+	fmt.Println("lazylinux list")
+	fmt.Println("lazylinux update")
+	fmt.Println("lazylinux clean")
 
 	return nil
 }
