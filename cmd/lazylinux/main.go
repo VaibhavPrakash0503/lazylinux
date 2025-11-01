@@ -246,6 +246,62 @@ func main() {
 		fmt.Println()
 		fmt.Println("✅ System cleaned!")
 
+	case "list":
+		if !config.ConfigExists() {
+			fmt.Println("❌ LazyLinux not initialized!")
+			fmt.Println("Run: lazylinux init")
+			os.Exit(1)
+		}
+
+		// Load config
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+
+		pm, err := loadPackageManager()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("📋 Installed Packages")
+
+		// List native packages
+		fmt.Printf("📦 %s Packages:\n", getPackageManagerName(pm))
+		nativeList, err := pm.List()
+		if err == nil && len(nativeList) > 0 {
+			for i, pkg := range nativeList {
+				if i >= 20 {
+					fmt.Printf("  ... and %d more\n", len(nativeList)-20)
+					break
+				}
+				fmt.Printf("  • %s\n", pkg)
+			}
+		} else {
+			fmt.Println("  (none found)")
+		}
+		fmt.Println()
+
+		// List Flatpak packages if available
+		if cfg.FlatpakEnabled {
+			fmt.Println("🎨 Flatpak Packages:")
+			flatpakPM := pkgmgr.NewFlatpak()
+			flatpakList, err := flatpakPM.List()
+			if err == nil && len(flatpakList) > 0 {
+				for i, pkg := range flatpakList {
+					if i >= 20 {
+						fmt.Printf("  ... and %d more\n", len(flatpakList)-20)
+						break
+					}
+					fmt.Printf("  • %s\n", pkg)
+				}
+			} else {
+				fmt.Println("  (none found)")
+			}
+		}
+
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		showHelp()
@@ -281,6 +337,7 @@ func showHelp() {
 	fmt.Println("  remove <package>...    - Remove packages")
 	fmt.Println("  update                 - Update all packages")
 	fmt.Println("  clean                  - Clean cache and remove orphaned packages")
+	fmt.Println("  list                   - List all the installed packages")
 }
 
 func getPackageManagerName(pm pkgmgr.PackageManager) string {

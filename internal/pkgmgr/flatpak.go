@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 // Flatpak represents the Flatpak package manager
@@ -77,4 +78,28 @@ func (f *Flatpak) Clean() error {
 	repairCmd.Stdout = os.Stdout
 	repairCmd.Stderr = os.Stderr
 	return repairCmd.Run()
+}
+
+// List lists all installed Flatpak packages
+func (f *Flatpak) List() ([]string, error) {
+	// flatpak list --app --columns=application
+	cmd := exec.Command("flatpak", "list", "--app", "--columns=application")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse output
+	var results []string
+	lines := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
+
+	for line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line == "Application ID" {
+			continue
+		}
+		results = append(results, line)
+	}
+
+	return results, nil
 }

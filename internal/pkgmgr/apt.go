@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 type APT struct{}
@@ -74,4 +75,30 @@ func (a *APT) Clean() error {
 	autoremoveCmd.Stdout = os.Stdout
 	autoremoveCmd.Stderr = os.Stderr
 	return autoremoveCmd.Run()
+}
+
+// List lists all installed packages
+func (a *APT) List() ([]string, error) {
+	// apt list --installed
+	cmd := exec.Command("apt", "list", "--installed")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse output
+	var results []string
+	lines := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
+
+	for line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line == "Listing..." {
+			continue
+		}
+		// apt list output: "package-name/repo,repo version [installed]"
+		pkgName := strings.Split(line, "/")[0]
+		results = append(results, pkgName)
+	}
+
+	return results, nil
 }

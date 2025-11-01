@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 type Pacman struct{}
@@ -74,4 +75,32 @@ func (p *Pacman) Clean() error {
 	removeCmd.Stdout = os.Stdout
 	removeCmd.Stderr = os.Stderr
 	return removeCmd.Run()
+}
+
+// List lists all installed packages
+func (p *Pacman) List() ([]string, error) {
+	// pacman -Q (list all installed)
+	cmd := exec.Command("pacman", "-Q")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse output
+	var results []string
+	lines := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
+
+	for line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// pacman -Q output: "package-name version"
+		parts := strings.Fields(line)
+		if len(parts) >= 1 {
+			results = append(results, parts[0])
+		}
+	}
+
+	return results, nil
 }

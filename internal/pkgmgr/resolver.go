@@ -90,9 +90,9 @@ func searchFlatpakPackages(packageName string) []PackageSource {
 
 	// Parse output line by line
 	// Format: org.zen_browser.zen	Zen Browser
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	lines := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
 
-	for _, line := range lines {
+	for line := range lines {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}

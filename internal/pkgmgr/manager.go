@@ -8,4 +8,5 @@ type PackageManager interface {
 	Remove(packages ...string) error
 	Update() error
 	Clean() error
+	List() ([]string, error)
 }
