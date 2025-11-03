@@ -15,6 +15,7 @@ import (
 type Config struct {
 	PackageManager string `yaml:"package_manager"` // "dnf", "apt", or "pacman"
 	FlatpakEnabled bool   `yaml:"enable_flatpak"`
+	SnapEnabled    bool   `yaml:"enable_snap"`
 	RPMEnabled     bool   `yaml:"enable_rpm"`
 }
 
@@ -71,6 +72,8 @@ func SaveConfig(cfg *Config) error {
 	if err != nil {
 		return fmt.Errorf("could not write config file: %v", err)
 	}
+
+	fmt.Printf("✅ Configuration saved to: %s\n", GetConfigPath())
 
 	return nil
 }

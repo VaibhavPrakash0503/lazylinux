@@ -25,8 +25,19 @@ func DetectPackageManager() (PackageManager, error) {
 	return nil, fmt.Errorf("no supported package manager found (dnf, apt, pacman)")
 }
 
-// DetectFlatpak checks if Flatpak is available
-func DetectFlatpak() bool {
-	_, err := exec.LookPath("flatpak")
-	return err == nil
+func isFlatpakInstalled() bool {
+	cmd := exec.Command("which", "flatpak")
+	return cmd.Run() == nil
+}
+
+// Check if snap is installed
+func isSnapInstalled() bool {
+	cmd := exec.Command("which", "snap")
+	return cmd.Run() == nil
+}
+
+// Check if rpm is available
+func isRPMInstalled() bool {
+	cmd := exec.Command("which", "rpm")
+	return cmd.Run() == nil
 }
