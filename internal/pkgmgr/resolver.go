@@ -77,8 +77,8 @@ func checkNativePackage(packageName string, pm PackageManager) bool {
 		}
 		return true
 	case *APT:
-		// apt-cache show <package>
-		cmd = exec.Command("apt-cache", "search", "--namees-only", "^"+packageName+"$")
+		// apt-cache search <package>
+		cmd = exec.Command("apt-cache", "search", "--names-only", "^"+packageName+"$")
 		output, err := cmd.Output()
 		if err != nil || len(output) == 0 {
 			return false
