@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sync"
 
 	"lazylinux/internal/config"
 	"lazylinux/internal/pkgmgr"
@@ -187,58 +186,31 @@ func handleUpdate() {
 	fmt.Println("🔄 Updating packages...")
 	fmt.Println()
 
-	var wg sync.WaitGroup
-	errChan := make(chan struct {
-		manager string
-		err     error
-	}, 2)
-
-	numUpdates := 1
-	if cfg.FlatpakEnabled {
-		numUpdates = 2
-	}
-	wg.Add(numUpdates)
+	hasErrors := false
 
 	// Update native package manager
-	go func() {
-		defer wg.Done()
-		fmt.Printf("🔄 Updating %s packages...\n", getPackageManagerName(pm))
-		err := pm.Update()
-		if err != nil {
-			errChan <- struct {
-				manager string
-				err     error
-			}{getPackageManagerName(pm), err}
-			return
-		}
+	fmt.Printf("🔄 Updating %s packages...\n", getPackageManagerName(pm))
+	err = pm.Update()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "❌ Failed to update %s packages: %v\n", getPackageManagerName(pm), err)
+		hasErrors = true
+	} else {
 		fmt.Printf("✅ %s packages updated\n", getPackageManagerName(pm))
-	}()
+	}
+
+	fmt.Println()
 
 	// Update Flatpak if enabled
 	if cfg.FlatpakEnabled {
-		go func() {
-			defer wg.Done()
-			fmt.Println("🔄 Updating Flatpak packages...")
-			flatpakPM := pkgmgr.NewFlatpak()
-			err := flatpakPM.Update()
-			if err != nil {
-				errChan <- struct {
-					manager string
-					err     error
-				}{"Flatpak", err}
-				return
-			}
+		fmt.Println("🔄 Updating Flatpak packages...")
+		flatpakPM := pkgmgr.NewFlatpak()
+		err = flatpakPM.Update()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Failed to update Flatpak packages: %v\n", err)
+			hasErrors = true
+		} else {
 			fmt.Println("✅ Flatpak packages updated")
-		}()
-	}
-
-	wg.Wait()
-	close(errChan)
-
-	hasErrors := false
-	for errResult := range errChan {
-		hasErrors = true
-		fmt.Fprintf(os.Stderr, "❌ Failed to update %s packages: %v\n", errResult.manager, errResult.err)
+		}
 	}
 
 	fmt.Println()
