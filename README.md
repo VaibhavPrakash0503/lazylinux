@@ -21,14 +21,16 @@ LazyLinux is a command-line tool that simplifies Linux package management across
 
 ### Step 1: Clone and Install
 git clone https://github.com/VaibhavPrakash0503/lazylinux.git
+
 cd lazylinux
+
 ./install.sh
 
 ### Step 2: Configure
 
 Run the setup command to auto-detect your package manager:
 
-lazylinux setup
+lazylinux init
 
 This creates `~/.config/lazylinux/config.yaml` with your system's configuration.
 

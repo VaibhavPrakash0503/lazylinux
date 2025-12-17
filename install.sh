@@ -26,7 +26,7 @@ sudo mv lazylinux /usr/local/bin/
 echo -e "${GREEN}✅ Installation complete!${NC}"
 echo ""
 echo "Next steps:"
-echo "  1. Run 'lazylinux setup' to configure your package manager"
+echo "  1. Run 'lazylinux init' to configure your package manager"
 echo "  2. Run 'lazylinux --help' to get started"
 echo ""
 echo -e "${YELLOW}💡 Tip: Add a shorter alias for convenience${NC}"
