@@ -20,7 +20,7 @@ LazyLinux is a command-line tool that simplifies Linux package management across
 ## Installation
 
 ### Step 1: Clone and Install
-git clone https://github.com/<your-username>/lazylinux.git
+git clone https://github.com/VaibhavPrakash0503/lazylinux.git
 cd lazylinux
 ./install.sh
 
