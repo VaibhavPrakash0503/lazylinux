@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"lazylinux/internal/config"
-	"lazylinux/internal/pkgmgr"
-	"lazylinux/internal/webapp"
+	"github.com/VaibhavPrakash0503/lazylinux/internal/config"
+	"github.com/VaibhavPrakash0503/lazylinux/internal/pkgmgr"
+	"github.com/VaibhavPrakash0503/lazylinux/internal/webapp"
 )
 
 func main() {

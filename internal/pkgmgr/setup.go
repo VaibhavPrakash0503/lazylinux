@@ -3,7 +3,7 @@ package pkgmgr
 import (
 	"fmt"
 
-	"lazylinux/internal/config"
+	"github.com/VaibhavPrakash0503/lazylinux/internal/config"
 )
 
 // RunInit detects package manager and saves configuration
